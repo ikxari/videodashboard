@@ -6,7 +6,7 @@
 <meta name="application-name" content="Ikxari">
 <meta name="theme-color" content="#07080e">
 <meta name="robots" content="noindex,nofollow">
-<title>Ikxari - VidShare</title>
+<title>Ikxari</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6cf0'/%3E%3Cstop offset='1' stop-color='%23a996ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='bold' fill='%23fff' text-anchor='middle'%3EiK%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -150,6 +150,23 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 .wtitle{font-size:18px;font-weight:700}
 .wpill{font-size:11.5px;color:var(--accent-ink);background:rgba(124,108,240,.15);padding:3px 11px;border-radius:20px;font-weight:600}
 .wline{flex:1;height:1px;background:var(--line)}
+.psub2{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-top:24px;margin-bottom:2px;font-weight:600}
+.wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:12px 0 6px}
+.wcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;transition:transform .2s var(--ease),border-color .2s,background .2s;animation:fadeUp .35s var(--ease) backwards}
+.wcard:hover{transform:translateY(-3px);border-color:var(--line2)}
+.wcard.on{border-color:var(--accent);background:linear-gradient(160deg,rgba(124,108,240,.2),var(--surface))}
+.wic{width:40px;height:40px;border-radius:12px;background:rgba(124,108,240,.15);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:10px}
+.wc-t{font-weight:700;font-size:15px}
+.wc-n{color:var(--muted);font-size:12px;margin-top:2px}
+.recent-sec{margin-top:32px}
+.reclist{padding:6px}
+.recrow{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;cursor:pointer;transition:background .15s}
+.recrow:hover{background:rgba(255,255,255,.04)}
+.rec-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.rec-main{flex:1;min-width:0}
+.rec-t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-m{color:var(--muted);font-size:11.5px;margin-top:1px}
+.rec-time{color:var(--faint);font-size:12px;white-space:nowrap;flex-shrink:0}
 
 /* media cards */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:18px}
@@ -313,7 +330,7 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbwCTY2yWd0StL1Bty8fTRQj6TrSis8tLeXcf9fqLi1ubOhNeKAMcUd2uzz2lFvogIQw/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '1.3.2';
+const APP_VERSION = '1.3.3';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -511,24 +528,51 @@ async function loadLibrary(){
   if(r.ok){ ITEMS=r.items||[]; renderLibrary(); }
   else if(!ITEMS.length){ $('pg-library').innerHTML='<h2 class="pt">Dashboard</h2><p class="psub" style="color:var(--err)">'+esc(r.msg||'Failed')+'</p>'; }
 }
+let CUR_WEEK = null;   // null = all; number = week; 0 = unsorted
+function selectWeek(w){ CUR_WEEK = (w==='all') ? null : Number(w); renderLibrary(); window.scrollTo({top:0,behavior:'smooth'}); }
+function ago(ts){
+  if(!ts) return ''; const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return 'just now';
+  const m=Math.floor(s/60); if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); if(h<24) return h+'h ago';
+  const d=Math.floor(h/24); if(d<30) return d+'d ago';
+  const mo=Math.floor(d/30); return mo+'mo ago';
+}
+function wcard(val,icon,label,n,active){
+  return '<div class="wcard'+(active?' on':'')+'" onclick="selectWeek(\''+val+'\')"><div class="wic">'+icon+'</div><div class="wc-t">'+esc(label)+'</div><div class="wc-n">'+n+' item'+(n!==1?'s':'')+'</div></div>';
+}
+function recRow(it){
+  return '<div class="recrow" onclick="openItem(\''+it.id+'\')"><div class="rec-ic b-'+it.type+'">'+ICON[it.type]+'</div>'+
+    '<div class="rec-main"><div class="rec-t">'+esc(it.title)+'</div><div class="rec-m">'+(it.week>0?'Week '+it.week:'Unsorted')+' · '+esc(it.type)+'</div></div>'+
+    '<div class="rec-time">'+ago(it._ts)+'</div></div>';
+}
 function renderLibrary(){
   const vids=ITEMS.filter(i=>i.type==='video').length, docs=ITEMS.filter(i=>i.type==='pdf'||i.type==='note').length;
   const weeks=[...new Set(ITEMS.map(i=>i.week||0))];
   const nWeeks=weeks.filter(w=>w>0).length;
-  let html='<h2 class="pt">Dashboard</h2><p class="psub">Your digital library — organised week by week.</p>'+
+  let html='<h2 class="pt">Dashboard</h2><p class="psub">Your digital library — browse by week.</p>'+
     '<div class="stats">'+statTile('📦',ITEMS.length,'Total items')+statTile('🗓️',nWeeks,'Weeks')+statTile('🎬',vids,'Videos')+statTile('📄',docs,'Documents')+'</div>';
   if(!ITEMS.length){
     html+='<div class="card" style="padding:48px;text-align:center;color:var(--muted);margin-top:20px">Nothing here yet.'+(SESSION.isAdmin?' <a href="#" onclick="go(\'add\');return false">Add your first item →</a>':'')+'</div>';
     $('pg-library').innerHTML=html; return;
   }
+  // folder-style week selector
   const sortedWeeks=weeks.slice().sort((a,b)=>b-a);
-  let idx=0;
-  sortedWeeks.forEach(w=>{
-    const list=ITEMS.filter(i=>(i.week||0)===w);
-    const label=w>0?('Week '+w):'Unsorted';
-    html+='<div class="wsec"><div class="whead"><span class="wtitle">'+label+'</span><span class="wpill">'+list.length+' item'+(list.length>1?'s':'')+'</span><span class="wline"></span></div>'+
-      '<div class="grid">'+list.map(it=>{ idx++; return itemCard(it,idx); }).join('')+'</div></div>';
-  });
+  let wsel='<div class="psub2">Browse by week</div><div class="wgrid">'+
+    wcard('all','🗂️','All items',ITEMS.length, CUR_WEEK===null);
+  sortedWeeks.forEach(w=>{ const n=ITEMS.filter(i=>(i.week||0)===w).length; wsel+=wcard(w, w>0?'🗓️':'📂', w>0?('Week '+w):'Unsorted', n, CUR_WEEK===w); });
+  wsel+='</div>';
+  html+=wsel;
+  // filtered grid for the chosen week
+  const shown = (CUR_WEEK===null) ? ITEMS : ITEMS.filter(i=>(i.week||0)===CUR_WEEK);
+  const title = (CUR_WEEK===null) ? 'All items' : (CUR_WEEK>0?('Week '+CUR_WEEK):'Unsorted');
+  html+='<div class="whead" style="margin-top:14px"><span class="wtitle">'+esc(title)+'</span><span class="wpill">'+shown.length+' item'+(shown.length!==1?'s':'')+'</span><span class="wline"></span></div>'+
+    (shown.length ? '<div class="grid">'+shown.map((it,i)=>itemCard(it,i+1)).join('')+'</div>'
+                  : '<div class="card" style="padding:36px;text-align:center;color:var(--muted)">No items in '+esc(title)+'.</div>');
+  // recent uploads
+  const recent=ITEMS.slice().sort((a,b)=>(b._ts||0)-(a._ts||0)).slice(0,5);
+  html+='<div class="recent-sec"><div class="whead"><span class="wtitle">Recent uploads</span><span class="wpill">last 5</span><span class="wline"></span></div>'+
+    '<div class="card reclist">'+(recent.length?recent.map(recRow).join(''):'<div style="color:var(--muted);padding:16px">No uploads yet.</div>')+'</div></div>';
   $('pg-library').innerHTML=html;
 }
 function itemCard(it,i){
