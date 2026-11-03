@@ -563,13 +563,15 @@ function renderLibrary(){
   sortedWeeks.forEach(w=>{ const n=ITEMS.filter(i=>(i.week||0)===w).length; wsel+=wcard(w, w>0?'🗓️':'📂', w>0?('Week '+w):'Unsorted', n, CUR_WEEK===w); });
   wsel+='</div>';
   html+=wsel;
-  // filtered grid for the chosen week
-  const shown = (CUR_WEEK===null) ? ITEMS : ITEMS.filter(i=>(i.week||0)===CUR_WEEK);
-  const title = (CUR_WEEK===null) ? 'All items' : (CUR_WEEK>0?('Week '+CUR_WEEK):'Unsorted');
-  html+='<div class="whead" style="margin-top:14px"><span class="wtitle">'+esc(title)+'</span><span class="wpill">'+shown.length+' item'+(shown.length!==1?'s':'')+'</span><span class="wline"></span></div>'+
-    (shown.length ? '<div class="grid">'+shown.map((it,i)=>itemCard(it,i+1)).join('')+'</div>'
-                  : '<div class="card" style="padding:36px;text-align:center;color:var(--muted)">No items in '+esc(title)+'.</div>');
-  // recent uploads
+  // grid ONLY when a specific week is selected (overview stays clean)
+  if(CUR_WEEK!==null){
+    const shown = ITEMS.filter(i=>(i.week||0)===CUR_WEEK);
+    const title = CUR_WEEK>0?('Week '+CUR_WEEK):'Unsorted';
+    html+='<div class="whead" style="margin-top:14px"><span class="wtitle">'+esc(title)+'</span><span class="wpill">'+shown.length+' item'+(shown.length!==1?'s':'')+'</span><a href="#" onclick="selectWeek(\'all\');return false" style="font-size:12.5px">← all weeks</a><span class="wline"></span></div>'+
+      (shown.length ? '<div class="grid">'+shown.map((it,i)=>itemCard(it,i+1)).join('')+'</div>'
+                    : '<div class="card" style="padding:36px;text-align:center;color:var(--muted)">No items in '+esc(title)+'.</div>');
+  }
+  // recent uploads — always the latest 5, across all weeks
   const recent=ITEMS.slice().sort((a,b)=>(b._ts||0)-(a._ts||0)).slice(0,5);
   html+='<div class="recent-sec"><div class="whead"><span class="wtitle">Recent uploads</span><span class="wpill">last 5</span><span class="wline"></span></div>'+
     '<div class="card reclist">'+(recent.length?recent.map(recRow).join(''):'<div style="color:var(--muted);padding:16px">No uploads yet.</div>')+'</div></div>';
