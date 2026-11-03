@@ -6,7 +6,7 @@
 <meta name="application-name" content="Ikxari">
 <meta name="theme-color" content="#07080e">
 <meta name="robots" content="noindex,nofollow">
-<title>Ikxari - ShareDesk</title>
+<title>Ikxari</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6cf0'/%3E%3Cstop offset='1' stop-color='%23a996ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='bold' fill='%23fff' text-anchor='middle'%3EiK%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -306,10 +306,10 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 
 <script>
 /* ============ CONFIG ============ */
-const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbyHeh6Tzp4BHIzb-9eZrOLfXNq-eEQ_qayIzhGhVrw0B3ZT0YOx1MvtOaRD3oSZOTE/exec';
+const API_DEFAULT = 'https://script.google.com/macros/s/AKfycby9C4J1XgWnKOAXiM4hW3zru27UcUDZAMelhK-fEwvXMeJ5YtFIB5hpBjM7Tcxw5fMG/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.3.0';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -500,10 +500,13 @@ function go(pg){
 const ICON={video:'🎬',pdf:'📄',note:'📝',folder:'📁'};
 function statTile(icon,n,l){ return '<div class="stat"><div class="si">'+icon+'</div><div class="snum">'+n+'</div><div class="slbl">'+l+'</div></div>'; }
 async function loadLibrary(){
-  $('pg-library').innerHTML='<h2 class="pt">Dashboard</h2><p class="psub">Loading…</p>';
+  if(ITEMS.length) renderLibrary();   // instant from cache, then refresh silently
+  else $('pg-library').innerHTML='<h2 class="pt">Dashboard</h2><p class="psub">Loading…</p>';
   const r=await api({action:'listItems'}, true);
-  if(!r.ok){ $('pg-library').innerHTML='<h2 class="pt">Dashboard</h2><p class="psub" style="color:var(--err)">'+esc(r.msg||'Failed')+'</p>'; return; }
-  ITEMS=r.items||[];
+  if(r.ok){ ITEMS=r.items||[]; renderLibrary(); }
+  else if(!ITEMS.length){ $('pg-library').innerHTML='<h2 class="pt">Dashboard</h2><p class="psub" style="color:var(--err)">'+esc(r.msg||'Failed')+'</p>'; }
+}
+function renderLibrary(){
   const vids=ITEMS.filter(i=>i.type==='video').length, docs=ITEMS.filter(i=>i.type==='pdf'||i.type==='note').length;
   const weeks=[...new Set(ITEMS.map(i=>i.week||0))];
   const nWeeks=weeks.filter(w=>w>0).length;
@@ -619,22 +622,59 @@ function addTypeChange(){
   $('fBodyWrap').classList.toggle('hide', t!=='note');
   const lbl=$('fDriveWrap').querySelector('label');
   lbl.textContent = t==='folder' ? 'Drive folder link / ID' : (t==='note' ? 'Drive link / ID (optional — or write text below)' : 'Drive link / ID');
-  $('fUpBtn').style.display = (t==='folder') ? 'none' : '';   // folders come from Drive, not upload
+  const up=$('fUpBtn');
+  up.style.display = (t==='folder') ? 'none' : '';   // folders come from Drive, not upload
+  up.textContent = t==='video' ? '⬆ Upload video' : '⬆ Upload file';
 }
 async function uploadContent(btn){
   const type=$('fType').value;
-  if(type==='folder'){ toast('Folders are added by Drive link','err'); return; }
+  if(type==='folder'){ toast('Folders are added by a Drive link','err'); return; }
   pickFile(type==='video'?'video/*':(type==='pdf'?'application/pdf':''), async(file)=>{
-    if(file.size>40*1024*1024){ toast('File too large (max 40MB)','err'); return; }
-    const label=btn.textContent; btn.textContent='Uploading…'; btn.disabled=true;
+    const label=btn.textContent;
+    if(type==='video'){
+      // direct resumable upload to the owner Drive — any size, no 40MB cap
+      btn.disabled=true;
+      try{
+        const id=await uploadVideoResumable(file, pct=>{ btn.textContent='Uploading '+pct+'%'; });
+        $('fDrive').value=id; if(!$('fTitle').value) $('fTitle').value=file.name.replace(/\.[^.]+$/,'');
+        toast('Uploaded ✅ '+esc(file.name),'ok'); btn.textContent='✓ Uploaded';
+      }catch(e){ toast('Upload failed: '+(e.message||e),'err'); btn.textContent=label; }
+      btn.disabled=false; return;
+    }
+    // pdf -> base64 via app (stays private, ≤40MB)
+    if(file.size>40*1024*1024){ toast('Too large for a private PDF (max 40MB). Add big files as Video.','err'); return; }
+    btn.textContent='Uploading…'; btn.disabled=true;
     try{
       const b64=await fileToB64(file);
       const r=await api({action:'uploadFile', b64, mime:file.type, name:file.name, type});
-      if(r.ok){ $('fDrive').value=r.drive_id; toast('Uploaded ✅ '+esc(file.name),'ok'); }
-      else toast(r.msg||'Upload failed','err');
+      if(r.ok){ $('fDrive').value=r.drive_id; toast('Uploaded ✅','ok'); } else toast(r.msg||'Upload failed','err');
     }catch(e){ toast('Upload failed','err'); }
     btn.disabled=false; btn.textContent=label;
   });
+}
+// Resumable: browser -> Google Drive directly (owner's Drive), chunked, unlimited size.
+async function uploadVideoResumable(file, onProgress){
+  const t=await api({action:'getUploadToken'}, true);
+  if(!t.ok || !t.token) throw new Error(t.msg||'No upload token');
+  const init=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id', {
+    method:'POST',
+    headers:{ 'Authorization':'Bearer '+t.token, 'Content-Type':'application/json; charset=UTF-8', 'X-Upload-Content-Type':(file.type||'video/mp4') },
+    body:JSON.stringify({ name:file.name, parents:[t.folder_id] })
+  });
+  if(!init.ok) throw new Error('Could not start upload ('+init.status+')');
+  const session=init.headers.get('Location'); if(!session) throw new Error('No upload session');
+  const CH=16*1024*1024; let pos=0, id=null;
+  while(pos<file.size){
+    const end=Math.min(pos+CH, file.size);
+    const res=await fetch(session, { method:'PUT', headers:{ 'Content-Range':'bytes '+pos+'-'+(end-1)+'/'+file.size }, body:file.slice(pos,end) });
+    if(res.status===308){ /* chunk accepted, keep going */ }
+    else if(res.ok){ const j=await res.json().catch(()=>null); if(j&&j.id) id=j.id; }
+    else throw new Error('chunk '+res.status);
+    pos=end; if(onProgress) onProgress(Math.round(pos/file.size*100));
+  }
+  if(!id) throw new Error('upload incomplete');
+  await api({action:'finalizeUpload', drive_id:id, type:'video'}, true);
+  return id;
 }
 async function uploadThumbPick(btn, targetId, prevId){
   pickFile('image/*', async(file)=>{
@@ -693,13 +733,20 @@ function shareItem(id){
   const it=ITEMS.find(x=>x.id===id); if(!it) return;
   openModal('<div class="mhead"><b>🔗 Share "'+esc(it.title)+'"</b><button class="x" onclick="closeModal()">×</button></div><div class="mbody">'+
     '<p style="color:var(--muted);font-size:13px">The countdown starts the first time the link is opened. When time runs out, the viewer must log in.</p>'+
-    '<label class="fld">Access duration</label><select id="shMins"><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120" selected>2 hours</option><option value="360">6 hours</option><option value="1440">1 day</option><option value="10080">7 days</option></select>'+
+    '<label class="fld">Access duration</label><select id="shMins" onchange="document.getElementById(\'shCustom\').classList.toggle(\'hide\',this.value!==\'custom\')"><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120" selected>2 hours</option><option value="360">6 hours</option><option value="1440">1 day</option><option value="10080">7 days</option><option value="custom">Custom…</option></select>'+
+    '<div id="shCustom" class="hide uprow" style="margin-top:8px"><input class="inp" id="shCustVal" type="number" min="1" value="3" style="flex:1"><select id="shCustUnit" style="flex:1"><option value="1">minutes</option><option value="60" selected>hours</option><option value="1440">days</option></select></div>'+
     '<label class="fld">Label (optional)</label><input class="inp" id="shLabel" placeholder="'+esc(it.title)+'">'+
     '<button class="btn" style="margin-top:16px;width:100%" onclick="makeShare(\''+id+'\')">Generate link</button>'+
     '<div id="shOut" style="margin-top:16px"></div></div>');
 }
 async function makeShare(id){
-  const mins=$('shMins').value, label=$('shLabel').value.trim();
+  let mins=$('shMins').value;
+  if(mins==='custom'){
+    const v=parseInt($('shCustVal').value,10)||0, u=parseInt($('shCustUnit').value,10)||1;
+    mins=v*u;
+    if(mins<5){ toast('Minimum 5 minutes','err'); return; }
+  }
+  const label=$('shLabel').value.trim();
   const r=await api({action:'createShare', item_id:id, duration_mins:mins, label});
   if(!r.ok){ toast(r.msg||'Failed','err'); return; }
   const link=location.origin+location.pathname+'?s='+r.share_id;
