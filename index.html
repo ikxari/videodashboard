@@ -529,7 +529,7 @@ async function loadLibrary(){
   else if(!ITEMS.length){ $('pg-library').innerHTML='<h2 class="pt">Dashboard</h2><p class="psub" style="color:var(--err)">'+esc(r.msg||'Failed')+'</p>'; }
 }
 let CUR_WEEK = null;   // null = all; number = week; 0 = unsorted
-function selectWeek(w){ CUR_WEEK = (w==='all') ? null : Number(w); renderLibrary(); window.scrollTo({top:0,behavior:'smooth'}); }
+function selectWeek(w){ CUR_WEEK = (w==='all') ? 'all' : Number(w); renderLibrary(); window.scrollTo({top:0,behavior:'smooth'}); }
 function ago(ts){
   if(!ts) return ''; const s=Math.floor((Date.now()-ts)/1000);
   if(s<60) return 'just now';
@@ -559,12 +559,21 @@ function renderLibrary(){
   // folder-style week selector
   const sortedWeeks=weeks.slice().sort((a,b)=>b-a);
   let wsel='<div class="psub2">Browse by week</div><div class="wgrid">'+
-    wcard('all','🗂️','All items',ITEMS.length, CUR_WEEK===null);
+    wcard('all','🗂️','All items',ITEMS.length, CUR_WEEK==='all');
   sortedWeeks.forEach(w=>{ const n=ITEMS.filter(i=>(i.week||0)===w).length; wsel+=wcard(w, w>0?'🗓️':'📂', w>0?('Week '+w):'Unsorted', n, CUR_WEEK===w); });
   wsel+='</div>';
   html+=wsel;
-  // grid ONLY when a specific week is selected (overview stays clean)
-  if(CUR_WEEK!==null){
+  // nothing auto-shows on the overview; grid appears only after a click
+  if(CUR_WEEK==='all'){
+    // All items → every week shown week-wise (stacked sections)
+    const sw=weeks.slice().sort((a,b)=>b-a); let idx=0;
+    sw.forEach(w=>{
+      const list=ITEMS.filter(i=>(i.week||0)===w), lab=w>0?('Week '+w):'Unsorted';
+      html+='<div class="wsec"><div class="whead"><span class="wtitle">'+lab+'</span><span class="wpill">'+list.length+' item'+(list.length!==1?'s':'')+'</span><span class="wline"></span></div>'+
+        '<div class="grid">'+list.map(it=>{ idx++; return itemCard(it,idx); }).join('')+'</div></div>';
+    });
+  } else if(CUR_WEEK!==null){
+    // single week
     const shown = ITEMS.filter(i=>(i.week||0)===CUR_WEEK);
     const title = CUR_WEEK>0?('Week '+CUR_WEEK):'Unsorted';
     html+='<div class="whead" style="margin-top:14px"><span class="wtitle">'+esc(title)+'</span><span class="wpill">'+shown.length+' item'+(shown.length!==1?'s':'')+'</span><a href="#" onclick="selectWeek(\'all\');return false" style="font-size:12.5px">← all weeks</a><span class="wline"></span></div>'+
