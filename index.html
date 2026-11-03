@@ -6,7 +6,7 @@
 <meta name="application-name" content="Ikxari">
 <meta name="theme-color" content="#07080e">
 <meta name="robots" content="noindex,nofollow">
-<title>Ikxari</title>
+<title>Ikxari - ShareDesk</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c6cf0'/%3E%3Cstop offset='1' stop-color='%23a996ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-family='Arial' font-size='34' font-weight='bold' fill='%23fff' text-anchor='middle'%3EiK%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
@@ -309,7 +309,7 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbyHeh6Tzp4BHIzb-9eZrOLfXNq-eEQ_qayIzhGhVrw0B3ZT0YOx1MvtOaRD3oSZOTE/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -549,8 +549,18 @@ async function openItem(id){
   else if(it.type==='folder'){ renderFolder($('vBody'), it); }
   else {
     const r=await api({action:'streamFile', id:it.id}, true);
-    renderFileBlob($('vBody'), r, it.description);
+    if(r && r.ok) renderFileBlob($('vBody'), r, it.description);
+    else if(it.drive_id) renderDriveStream($('vBody'), it, (r&&r.msg)||'');   // big file → Drive streams it
+    else renderFileBlob($('vBody'), r, it.description);
   }
+}
+function renderDriveStream(box, it, note){
+  const prev='https://drive.google.com/file/d/'+esc(it.drive_id)+'/preview';
+  const view='https://drive.google.com/file/d/'+esc(it.drive_id)+'/view';
+  box.innerHTML=(it.description?'<p style="color:var(--muted);margin-bottom:10px">'+esc(it.description)+'</p>':'')+
+    (note?'<p style="color:var(--warn);font-size:12px;margin-bottom:10px">'+esc(note)+' — streaming directly from Drive instead.</p>':'')+
+    '<div class="vwrap" oncontextmenu="return false"><iframe class="vframe" src="'+prev+'" allow="autoplay" allowfullscreen></iframe></div>'+
+    '<a class="btn ghost sm" style="margin-top:10px;text-decoration:none" href="'+view+'" target="_blank" rel="noopener">Open in Drive ↗</a>';
 }
 function renderVideo(box, driveId, desc){
   box.innerHTML = (desc?'<p style="color:var(--muted);margin-bottom:12px">'+esc(desc)+'</p>':'')+
@@ -601,7 +611,7 @@ function renderAdd(){
     '<label class="fld">Thumbnail (optional)</label><div class="uprow"><input class="inp" id="fThumb" placeholder="Paste an image URL or upload →"><button class="btn ghost sm" onclick="uploadThumbPick(this,\'fThumb\',\'fThumbPrev\')">⬆ Upload image</button></div><img id="fThumbPrev" class="thumbprev" alt="">'+
     '<label class="fld">Tags (optional, comma-separated)</label><input class="inp" id="fTags">'+
     '<button class="btn" style="margin-top:20px;width:100%" onclick="addItem()">Add to library 🚀</button>'+
-    '<p style="color:var(--faint);font-size:11.5px;margin-top:14px">Videos are set to "anyone with link" so the player works. PDFs, notes and folder files stay private and are streamed by the app (≤40MB).</p>'+
+    '<p style="color:var(--faint);font-size:11.5px;margin-top:14px">Videos use Drive\'s native player (any size, up to 10–12GB). PDFs &amp; notes are app-streamed and private up to 40MB; larger files open straight from Drive, so add them as Video or share the Drive file "anyone with link".</p>'+
     '</div>';
 }
 function addTypeChange(){
