@@ -353,10 +353,10 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 
 <script>
 /* ============ CONFIG ============ */
-const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbztzZDZiXxhdF4MaA_wGIp6GbPpq84HR8KpiM1_xHJspZqz4yHt9K_jvClmzTQzU2ay/exec';
+const API_DEFAULT = 'https://script.google.com/macros/s/AKfycby2jVinbsCoESyD5jjbg2Jv0jany0iQVHTkfK5sjqMpgsJdOZo2wVkSrYFwMzTdxX8Q/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.3.2';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -524,12 +524,14 @@ async function resendCode(){ const r=await api({action:'resendOtp', email:authEm
 /* ============ APP SHELL ============ */
 function toggleSide(){ $('appView').classList.toggle('side-open'); }
 function closeSide(){ $('appView').classList.remove('side-open'); }
-const NAV=[['library','🏠','Dashboard'],['shares','🔗','Shares'],['users','👥','Users'],['add','＋','Add Content']];
+const NAV=[['library','🏠','Dashboard'],['shares','🔗','Shares'],['users','👥','Users'],['newfolder','➕','New Folder']];
 function showApp(){
   $('authView').style.display='none'; $('shareView').style.display='none'; $('appView').classList.add('ready');
   const admin=SESSION.isAdmin;
-  $('nav').innerHTML = NAV.filter(n=>admin||['library','shares'].includes(n[0])).map((n,i)=>
-    '<button class="pill'+(i===0?' on':'')+'" data-pg="'+n[0]+'" onclick="go(\''+n[0]+'\')"><span class="ni">'+n[1]+'</span><span>'+n[2]+'</span></button>').join('');
+  $('nav').innerHTML = NAV.filter(n=>admin||['library','shares'].includes(n[0])).map((n,i)=>{
+    const act = n[0]==='newfolder' ? 'createFolder()' : 'go(\''+n[0]+'\')';
+    return '<button class="pill'+(i===0?' on':'')+'" data-pg="'+n[0]+'" onclick="'+act+'"><span class="ni">'+n[1]+'</span><span>'+n[2]+'</span></button>';
+  }).join('');
   $('uchip').innerHTML='<div class="ucard"><div class="uav">'+initials(SESSION.name)+'</div><div style="min-width:0"><div class="uname">'+esc(SESSION.name)+'</div><div class="urole">'+esc(SESSION.role)+'</div></div></div><button class="btn ghost sm" style="width:100%;margin-top:11px" onclick="signOut()">Sign out 👋</button>';
   $('footer').textContent=BRAND+' · Secure sharing · v'+APP_VERSION;
   go('library');
