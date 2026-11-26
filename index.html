@@ -353,10 +353,10 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 
 <script>
 /* ============ CONFIG ============ */
-const API_DEFAULT = 'https://script.google.com/macros/s/AKfycby2jVinbsCoESyD5jjbg2Jv0jany0iQVHTkfK5sjqMpgsJdOZo2wVkSrYFwMzTdxX8Q/exec';
+const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbx1IMoIzEouP25-UMhbfvw65RZ56AZJ3hd0jXXsWPE7llbu_p3XS0UpuK01CXssnK71/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '2.3.3';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -573,8 +573,12 @@ function createFolder(){
 async function saveFolder(){
   const name=($('nfName').value||'').trim(); if(!name){ toast('Enter a name','err'); return; }
   const r=await api({action:'createFolder', name});
-  if(!r.ok){ toast(r.msg||'Failed','err'); return; }
-  FOLDERS=r.folders||FOLDERS; toast(r.msg||'Folder created ✅','ok'); closeModal(); selectCat(r.name||name);
+  if(!r.ok){ toast(r.msg||'Failed — is the backend updated to v2.3+? (deploy Code.gs)','err'); return; }
+  // merge folder locally so it shows even if backend did not echo it
+  FOLDERS = r.folders && r.folders.length ? r.folders : [...new Set([...FOLDERS, r.name||name])];
+  toast(r.msg||'Folder created ✅','ok'); closeModal();
+  CUR_CAT=null; CUR_WEEK=null; renderLibrary();   // stay on dashboard so the new folder card is visible
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function addToFolder(c){ ADD_PRECAT=c; go('add'); }
 function ago(ts){
