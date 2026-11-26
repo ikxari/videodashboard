@@ -353,10 +353,10 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 
 <script>
 /* ============ CONFIG ============ */
-const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbxrIAFaA4OdUx5HBULbioP3gZGP2DVj9NCdCH3XTB-U2tiQcngC7pmw_socEZGdqHA5/exec';
+const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbztzZDZiXxhdF4MaA_wGIp6GbPpq84HR8KpiM1_xHJspZqz4yHt9K_jvClmzTQzU2ay/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -632,18 +632,18 @@ function buildBrowse(){
     const set=new Set([...FOLDERS, ...used]);
     const cats=[...set].sort((a,b)=> a==='Uncategorized'?1 : b==='Uncategorized'?-1 : a.localeCompare(b));
     let g='';
-    if(SESSION.isAdmin) g+='<div class="newfolder" onclick="createFolder()"><div class="wic" style="background:rgba(124,108,240,.2)">➕</div><div><div class="wc-t">New folder</div><div class="wc-n">Create a category</div></div></div>';
+    if(SESSION.isAdmin) g+='<button class="btn" style="margin:2px 0 16px" onclick="createFolder()">➕ Create Folder</button>';
     let cards='<div class="wgrid">'+catcard('__all','🗂️','All items',ITEMS.length,false);
     cats.forEach(c=>{ const n=catItems(c).length; cards+=catcard(c, c==='Uncategorized'?'📂':'🗃️', c, n, false); });
     cards+='</div>';
-    return '<div class="psub2">Folders</div>'+g+cards;
+    return g+'<div class="psub2">Folders</div>'+cards;
   }
   // within a category (or __all)
   const pool=catItems(CUR_CAT);
   const weeks=[...new Set(pool.map(i=>i.week||0))].sort((a,b)=>b-a);
   let html=crumb();
   if(SESSION.isAdmin && CUR_CAT!=='__all'){
-    html+='<button class="btn sm" style="margin:2px 0 10px" onclick="addToFolder(\''+esc(CUR_CAT).replace(/'/g,"\\'")+'\')">＋ Add content here</button>';
+    html+='<button class="btn sm" style="margin:2px 0 10px" onclick="addToFolder(\''+esc(CUR_CAT).replace(/'/g,"\\'")+'\')">＋ Add Files / Videos</button>';
   }
   // LEVEL 1 — week folders inside the category
   let wsel='<div class="psub2">Browse by week</div><div class="wgrid">'+
