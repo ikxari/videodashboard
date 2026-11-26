@@ -353,10 +353,10 @@ h2.pt{font-size:26px;font-weight:700;margin-bottom:4px}
 
 <script>
 /* ============ CONFIG ============ */
-const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbx1IMoIzEouP25-UMhbfvw65RZ56AZJ3hd0jXXsWPE7llbu_p3XS0UpuK01CXssnK71/exec';
+const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbwTF8cU0Y8-3F29wlIp4R3XQh3obyaLDW6W5Wi0yoFQHenZ11Z7F3G1ym0NDgkVI0g/exec';
 let API = localStorage.getItem('ikx_api') || API_DEFAULT;
 const BRAND = 'Ikxari';
-const APP_VERSION = '2.3.3';
+const APP_VERSION = '2.3.4';
 function apiOk(u){ return /\/macros\/(s|.*\/s)\/[^/]+\/exec$/.test(String(u||'')); }
 
 /* ============ STATE ============ */
@@ -607,7 +607,9 @@ function renderLibrary(){
   let html='<h2 class="pt">Dashboard</h2><p class="psub">Your private vault — search or browse by category.</p>'+
     '<div class="stats">'+statTile('🗃️',nCats,'Categories')+statTile('🗓️',nWeeks,'Weeks')+statTile('🎬',vids,'Videos')+statTile('👁',totalViews,'Total views')+'</div>';
   if(!ITEMS.length){
-    html+='<div class="card" style="padding:48px;text-align:center;color:var(--muted);margin-top:20px">Nothing here yet.'+(SESSION.isAdmin?' <a href="#" onclick="go(\'add\');return false">Add your first item →</a>':'')+'</div>';
+    // no items yet — still show folders + Create Folder so admin can set up
+    html+='<div style="margin-top:14px">'+buildBrowse()+'</div>';
+    if(CUR_CAT===null) html+='<div class="card" style="padding:28px;text-align:center;color:var(--muted);margin-top:14px">No content yet.'+(SESSION.isAdmin?' Create a folder, open it, then “Add Files / Videos”.':'')+'</div>';
     $('pg-library').innerHTML=html; return;
   }
   // search bar
